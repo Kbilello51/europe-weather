@@ -312,10 +312,11 @@ function drawTempChart(){
   const pw = W-pad.l-pad.r, ph = H-pad.t-pad.b;
   const n = d.dates.length;
 
-  // smooth all series for a clean display
-  const smax  = rollingAvg(d.tmax,  7);
-  const smin  = rollingAvg(d.tmin,  7);
-  const smean = rollingAvg(d.tmean, 7);
+  // adaptive smoothing — tighter window for short ranges
+  const sw    = activeDays <= 90 ? 3 : activeDays <= 365 ? 7 : 14;
+  const smax  = rollingAvg(d.tmax,  sw);
+  const smin  = rollingAvg(d.tmin,  sw);
+  const smean = rollingAvg(d.tmean, sw);
 
   const allT  = [...smax,...smin].filter(v=>!isNaN(v));
   const minV  = Math.floor(Math.min(...allT)/5)*5 - 3;
@@ -380,8 +381,9 @@ function drawHddChart(){
   const pw = W-pad.l-pad.r, ph = H-pad.t-pad.b;
   const n = d.dates.length;
 
-  const hdd  = rollingAvg(d.hdd15, 7);
-  const cdd  = rollingAvg(d.cdd15, 7);
+  const sw   = activeDays <= 90 ? 3 : activeDays <= 365 ? 7 : 14;
+  const hdd  = rollingAvg(d.hdd15, sw);
+  const cdd  = rollingAvg(d.cdd15, sw);
   const maxV = Math.ceil(Math.max(...hdd,...cdd,1)/2)*2+1;
 
   ctx.clearRect(0,0,W,H);
