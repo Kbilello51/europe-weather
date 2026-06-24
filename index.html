@@ -107,7 +107,7 @@ canvas{width:100%;display:block}
 <div class="charts">
   <div class="chart-card">
     <div class="chart-title">
-      Temperature (°C) &nbsp;<span style="font-weight:400;font-size:10px;color:var(--dim)">7-day smooth</span>
+      Temperature (°C) &nbsp;<span id="sw-label" style="font-weight:400;font-size:10px;color:var(--dim)">smooth</span>
       <span class="legend-item"><span class="legend-dot" style="background:#38bdf8;height:8px;border-radius:2px;opacity:.5"></span>Range</span>
       <span class="legend-item"><span class="legend-dot" style="background:#e2f0fa"></span>Mean</span>
       <span class="legend-item" style="margin-left:6px"><span class="legend-dot" style="background:#a78bfa"></span>Forecast</span>
@@ -299,7 +299,7 @@ function yOf(v, minV, maxV, padT, ph){ return padT + ph - ((v-minV)/(maxV-minV||
 function rollingAvg(arr, w){
   return arr.map((_,i)=>{
     const sl=arr.slice(Math.max(0,i-w+1),i+1).filter(v=>v!=null&&!isNaN(v));
-    return sl.length ? sl.reduce((a,b)=>a+b,0)/sl.length : 0;
+    return sl.length ? sl.reduce((a,b)=>a+b,0)/sl.length : null;
   });
 }
 
@@ -313,12 +313,16 @@ function drawTempChart(){
   const n = d.dates.length;
 
   // adaptive smoothing — tighter window for short ranges
-  const sw    = activeDays <= 90 ? 3 : activeDays <= 365 ? 7 : 14;
+  const sw    = activeDays <= 90 ? 3 : activeDays <= 365 ? 14 : 28;
   const smax  = rollingAvg(d.tmax,  sw);
   const smin  = rollingAvg(d.tmin,  sw);
   const smean = rollingAvg(d.tmean, sw);
 
-  const allT  = [...smax,...smin].filter(v=>!isNaN(v));
+  const swLabel = document.getElementById("sw-label");
+  if(swLabel) swLabel.textContent = sw+"-day smooth";
+
+  const allT  = [...smax,...smin].filter(v=>v!=null&&!isNaN(v));
+  if(!allT.length) return;
   const minV  = Math.floor(Math.min(...allT)/5)*5 - 3;
   const maxV  = Math.ceil(Math.max(...allT)/5)*5 + 3;
 
@@ -343,26 +347,40 @@ function drawTempChart(){
 
   function bandAndLine(from, to, smeanArr, bandColor, lineColor, dashed){
     if(from >= to) return;
+    const vMax = smax.slice(from,to+1).filter(v=>v!=null&&!isNaN(v));
+    const vMin = smin.slice(from,to+1).filter(v=>v!=null&&!isNaN(v));
+    if(!vMax.length||!vMin.length) return;
     // gradient fill for band
-    const topY  = yOf(Math.max(...smax.slice(from,to+1)),  minV, maxV, pad.t, ph);
-    const botY  = yOf(Math.min(...smin.slice(from,to+1)),  minV, maxV, pad.t, ph);
-    const grad  = ctx.createLinearGradient(0, topY, 0, botY);
-    grad.addColorStop(0,   bandColor.replace("BND","0.22"));
-    grad.addColorStop(0.5, bandColor.replace("BND","0.12"));
-    grad.addColorStop(1,   bandColor.replace("BND","0.06"));
+    const topY  = yOf(Math.max(...vMax), minV, maxV, pad.t, ph);
+    const botY  = yOf(Math.min(...vMin), minV, maxV, pad.t, ph);
+    const grad  = ctx.createLinearGradient(0, topY, botY===topY?botY+1:botY, 0); // avoid zero-length gradient
+    const g2    = ctx.createLinearGradient(0, topY, 0, botY===topY?botY+1:botY);
+    g2.addColorStop(0,   bandColor.replace("BND","0.22"));
+    g2.addColorStop(0.5, bandColor.replace("BND","0.12"));
+    g2.addColorStop(1,   bandColor.replace("BND","0.06"));
 
-    // filled band
+    // filled band — skip null points
     ctx.beginPath();
-    ctx.moveTo(xOf(from,n,pad.l,pw), yOf(smax[from],minV,maxV,pad.t,ph));
-    for(let i=from+1;i<=to;i++) ctx.lineTo(xOf(i,n,pad.l,pw), yOf(smax[i],minV,maxV,pad.t,ph));
-    for(let i=to;i>=from;i--)   ctx.lineTo(xOf(i,n,pad.l,pw), yOf(smin[i],minV,maxV,pad.t,ph));
-    ctx.closePath(); ctx.fillStyle=grad; ctx.fill();
+    let moved=false;
+    for(let i=from;i<=to;i++){
+      if(smax[i]==null){moved=false;continue;}
+      const x=xOf(i,n,pad.l,pw),y=yOf(smax[i],minV,maxV,pad.t,ph);
+      moved?ctx.lineTo(x,y):ctx.moveTo(x,y); moved=true;
+    }
+    for(let i=to;i>=from;i--){
+      if(smin[i]!=null) ctx.lineTo(xOf(i,n,pad.l,pw),yOf(smin[i],minV,maxV,pad.t,ph));
+    }
+    ctx.closePath(); ctx.fillStyle=g2; ctx.fill();
 
-    // mean line
+    // mean line — skip null points
     ctx.beginPath(); ctx.strokeStyle=lineColor; ctx.lineWidth=2;
     if(dashed) ctx.setLineDash([7,4]);
-    ctx.moveTo(xOf(from,n,pad.l,pw), yOf(smeanArr[from],minV,maxV,pad.t,ph));
-    for(let i=from+1;i<=to;i++) ctx.lineTo(xOf(i,n,pad.l,pw), yOf(smeanArr[i],minV,maxV,pad.t,ph));
+    moved=false;
+    for(let i=from;i<=to;i++){
+      if(smeanArr[i]==null){moved=false;continue;}
+      const x=xOf(i,n,pad.l,pw),y=yOf(smeanArr[i],minV,maxV,pad.t,ph);
+      moved?ctx.lineTo(x,y):ctx.moveTo(x,y); moved=true;
+    }
     ctx.stroke(); ctx.setLineDash([]);
   }
 
@@ -381,10 +399,10 @@ function drawHddChart(){
   const pw = W-pad.l-pad.r, ph = H-pad.t-pad.b;
   const n = d.dates.length;
 
-  const sw   = activeDays <= 90 ? 3 : activeDays <= 365 ? 7 : 14;
+  const sw   = activeDays <= 90 ? 3 : activeDays <= 365 ? 14 : 28;
   const hdd  = rollingAvg(d.hdd15, sw);
   const cdd  = rollingAvg(d.cdd15, sw);
-  const maxV = Math.ceil(Math.max(...hdd,...cdd,1)/2)*2+1;
+  const maxV = Math.ceil(Math.max(...hdd.filter(v=>v!=null),...cdd.filter(v=>v!=null),1)/2)*2+1;
 
   ctx.clearRect(0,0,W,H);
   const todayI = drawGridAndAxes(ctx, W, H, pad, 0, maxV, d.dates, viewData.todayTs, 4);
@@ -393,24 +411,34 @@ function drawHddChart(){
   function drawArea(vals, r, g, b, isFcst){
     const start = isFcst ? Math.max(0,todayI) : 0;
     const end   = isFcst ? n-1 : (todayI>=0?todayI:n-1);
-    const peakY = Math.min(...vals.slice(start,end+1).map(v=>yOf(v,0,maxV,pad.t,ph)));
+    const validV = vals.slice(start,end+1).filter(v=>v!=null&&!isNaN(v));
+    if(!validV.length) return;
+    const peakY = Math.min(...validV.map(v=>yOf(v,0,maxV,pad.t,ph)));
     const grad  = ctx.createLinearGradient(0, peakY, 0, base);
     const a     = isFcst ? 0.25 : 0.45;
     grad.addColorStop(0,   `rgba(${r},${g},${b},${a})`);
     grad.addColorStop(1,   `rgba(${r},${g},${b},0.02)`);
 
     ctx.beginPath();
-    ctx.moveTo(xOf(start,n,pad.l,pw), base);
-    for(let i=start;i<=end;i++) ctx.lineTo(xOf(i,n,pad.l,pw), yOf(vals[i],0,maxV,pad.t,ph));
-    ctx.lineTo(xOf(end,n,pad.l,pw), base);
-    ctx.closePath(); ctx.fillStyle=grad; ctx.fill();
+    let segOpen=false;
+    for(let i=start;i<=end;i++){
+      if(vals[i]==null){
+        if(segOpen){ctx.lineTo(xOf(i-1,n,pad.l,pw),base);ctx.closePath();ctx.fillStyle=grad;ctx.fill();}
+        segOpen=false; ctx.beginPath(); continue;
+      }
+      if(!segOpen){ctx.moveTo(xOf(i,n,pad.l,pw),base);segOpen=true;}
+      ctx.lineTo(xOf(i,n,pad.l,pw),yOf(vals[i],0,maxV,pad.t,ph));
+    }
+    if(segOpen){ctx.lineTo(xOf(end,n,pad.l,pw),base);ctx.closePath();ctx.fillStyle=grad;ctx.fill();}
 
     ctx.beginPath();
     ctx.strokeStyle=isFcst?`rgba(${r},${g},${b},0.55)`:`rgb(${r},${g},${b})`;
     ctx.lineWidth=1.8;
+    let moved=false;
     for(let i=start;i<=end;i++){
-      const x=xOf(i,n,pad.l,pw), y=yOf(vals[i],0,maxV,pad.t,ph);
-      i===start ? ctx.moveTo(x,y) : ctx.lineTo(x,y);
+      if(vals[i]==null){moved=false;continue;}
+      const x=xOf(i,n,pad.l,pw),y=yOf(vals[i],0,maxV,pad.t,ph);
+      moved?ctx.lineTo(x,y):ctx.moveTo(x,y); moved=true;
     }
     ctx.stroke();
   }
