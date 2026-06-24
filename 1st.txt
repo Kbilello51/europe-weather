@@ -1,0 +1,590 @@
+"""
+ENTSO-E bidding zone configuration for European weather data collection.
+
+Each zone contains representative cities weighted by metro-area population
+(millions, circa 2022-2024) for population-weighted aggregation.
+
+Stations: (latitude, longitude, metro_pop_millions, city_name)
+
+ERA5 archive (via Open-Meteo) goes back to 1940-01-01.
+Default start is 2000-01-01; override via CLI.
+"""
+
+DEFAULT_HISTORICAL_START = "2000-01-01"   # change to "1980-01-01" for 45 yrs
+ERA5_EARLIEST_DATE = "1940-01-01"
+
+HDD_BASE_TEMPS = {
+    "15c": 15.0,   # NW European gas industry standard
+    "18c": 18.0,   # EU heating system / Eurostat standard
+}
+
+MAX_FORECAST_DAYS = 16
+FORECAST_PAST_DAYS = 7
+
+ZONES = {
+
+    # ═══════════════════════════════════════════════════
+    # CENTRAL-WESTERN EUROPE
+    # ═══════════════════════════════════════════════════
+
+    "DE": {
+        "name": "Germany",
+        "country": "DE",
+        "timezone": "Europe/Berlin",
+        "stations": [
+            (52.52,  13.41, 3.70, "Berlin"),
+            (53.55,   9.99, 1.84, "Hamburg"),
+            (48.14,  11.58, 1.49, "Munich"),
+            (50.94,   6.96, 1.08, "Cologne"),
+            (50.11,   8.68, 0.75, "Frankfurt"),
+            (48.78,   9.18, 0.63, "Stuttgart"),
+            (51.23,   6.79, 0.62, "Düsseldorf"),
+            (51.34,  12.37, 0.60, "Leipzig"),
+            (51.51,   7.47, 0.59, "Dortmund"),
+            (51.46,   7.01, 0.58, "Essen"),
+            (53.08,   8.81, 0.57, "Bremen"),
+            (52.37,   9.73, 0.54, "Hannover"),
+            (49.45,  11.08, 0.52, "Nuremberg"),
+            (51.05,  13.74, 0.55, "Dresden"),
+            (49.00,   8.40, 0.31, "Karlsruhe"),
+            (48.37,  10.89, 0.30, "Augsburg"),
+        ],
+    },
+    "FR": {
+        "name": "France",
+        "country": "FR",
+        "timezone": "Europe/Paris",
+        "stations": [
+            (48.85,   2.35, 2.15, "Paris"),
+            (43.30,   5.38, 0.87, "Marseille"),
+            (45.75,   4.85, 0.52, "Lyon"),
+            (43.60,   1.44, 0.48, "Toulouse"),
+            (43.71,   7.26, 0.34, "Nice"),
+            (47.22,  -1.55, 0.31, "Nantes"),
+            (48.57,   7.75, 0.28, "Strasbourg"),
+            (43.61,   3.88, 0.29, "Montpellier"),
+            (44.84,  -0.58, 0.26, "Bordeaux"),
+            (50.63,   3.07, 0.23, "Lille"),
+            (48.11,  -1.68, 0.22, "Rennes"),
+            (49.26,   4.03, 0.18, "Reims"),
+            (47.32,   5.04, 0.18, "Dijon"),
+            (45.44,   4.39, 0.17, "Saint-Étienne"),
+            (43.12,   5.93, 0.17, "Toulon"),
+        ],
+    },
+    "NL": {
+        "name": "Netherlands",
+        "country": "NL",
+        "timezone": "Europe/Amsterdam",
+        "stations": [
+            (52.37,   4.90, 0.87, "Amsterdam"),
+            (51.92,   4.48, 0.65, "Rotterdam"),
+            (52.08,   4.31, 0.55, "The Hague"),
+            (52.09,   5.12, 0.36, "Utrecht"),
+            (51.44,   5.48, 0.22, "Eindhoven"),
+            (51.56,   5.09, 0.22, "Tilburg"),
+            (53.22,   6.57, 0.23, "Groningen"),
+            (52.25,   5.16, 0.22, "Almere"),
+        ],
+    },
+    "BE": {
+        "name": "Belgium",
+        "country": "BE",
+        "timezone": "Europe/Brussels",
+        "stations": [
+            (50.85,   4.35, 1.21, "Brussels"),
+            (51.22,   4.40, 0.53, "Antwerp"),
+            (51.05,   3.72, 0.26, "Ghent"),
+            (50.41,   4.44, 0.20, "Charleroi"),
+            (50.63,   5.57, 0.19, "Liège"),
+            (51.21,   3.22, 0.12, "Bruges"),
+        ],
+    },
+    "AT": {
+        "name": "Austria",
+        "country": "AT",
+        "timezone": "Europe/Vienna",
+        "stations": [
+            (48.21,  16.37, 1.91, "Vienna"),
+            (47.07,  15.44, 0.29, "Graz"),
+            (48.31,  14.29, 0.21, "Linz"),
+            (47.80,  13.04, 0.16, "Salzburg"),
+            (47.27,  11.39, 0.13, "Innsbruck"),
+            (47.50,   9.74, 0.08, "Bregenz"),
+        ],
+    },
+    "CH": {
+        "name": "Switzerland",
+        "country": "CH",
+        "timezone": "Europe/Zurich",
+        "stations": [
+            (47.38,   8.54, 0.43, "Zurich"),
+            (46.20,   6.15, 0.20, "Geneva"),
+            (47.56,   7.59, 0.18, "Basel"),
+            (46.95,   7.45, 0.14, "Bern"),
+            (46.52,   6.63, 0.14, "Lausanne"),
+            (46.00,   8.95, 0.12, "Lugano"),
+        ],
+    },
+
+    # ═══════════════════════════════════════════════════
+    # IBERIAN PENINSULA
+    # ═══════════════════════════════════════════════════
+
+    "ES": {
+        "name": "Spain",
+        "country": "ES",
+        "timezone": "Europe/Madrid",
+        "stations": [
+            (40.42,  -3.70, 3.35, "Madrid"),
+            (41.39,   2.15, 1.64, "Barcelona"),
+            (39.47,  -0.38, 0.80, "Valencia"),
+            (37.39,  -5.99, 0.69, "Seville"),
+            (41.65,  -0.88, 0.67, "Zaragoza"),
+            (36.72,  -4.42, 0.57, "Málaga"),
+            (37.99,  -1.13, 0.45, "Murcia"),
+            (39.57,   2.65, 0.42, "Palma"),
+            (28.10, -15.41, 0.38, "Las Palmas"),
+            (43.26,  -2.93, 0.35, "Bilbao"),
+            (38.35,  -0.48, 0.33, "Alicante"),
+            (43.37,  -8.40, 0.25, "A Coruña"),
+            (43.32,  -3.00, 0.22, "Santander"),
+            (36.53,  -6.30, 0.21, "Jerez"),
+        ],
+    },
+    "PT": {
+        "name": "Portugal",
+        "country": "PT",
+        "timezone": "Europe/Lisbon",
+        "stations": [
+            (38.72,  -9.14, 0.55, "Lisbon"),
+            (41.15,  -8.61, 0.24, "Porto"),
+            (41.55,  -8.43, 0.19, "Braga"),
+            (38.52,  -8.89, 0.12, "Setúbal"),
+            (38.57,  -7.91, 0.11, "Évora"),
+            (37.02,  -7.93, 0.10, "Faro"),
+        ],
+    },
+
+    # ═══════════════════════════════════════════════════
+    # ITALY — six ENTSO-E bidding zones
+    # ═══════════════════════════════════════════════════
+
+    "IT_NORD": {
+        "name": "Italy – North (NORD)",
+        "country": "IT",
+        "timezone": "Europe/Rome",
+        "stations": [
+            (45.46,   9.19, 1.37, "Milan"),
+            (45.07,   7.69, 0.87, "Turin"),
+            (44.41,   8.93, 0.58, "Genoa"),
+            (44.50,  11.34, 0.41, "Bologna"),
+            (45.44,  12.33, 0.26, "Venice"),
+            (45.44,  11.00, 0.26, "Verona"),
+            (45.65,  13.77, 0.21, "Trieste"),
+            (44.72,  10.63, 0.19, "Parma"),
+        ],
+    },
+    "IT_CNORD": {
+        "name": "Italy – Central North (CNORD)",
+        "country": "IT",
+        "timezone": "Europe/Rome",
+        "stations": [
+            (43.77,  11.25, 0.38, "Florence"),
+            (43.72,  10.40, 0.19, "Pisa"),
+            (43.55,  10.31, 0.16, "Livorno"),
+            (43.62,  13.51, 0.10, "Ancona"),
+            (43.32,  11.33, 0.10, "Siena"),
+        ],
+    },
+    "IT_CSUD": {
+        "name": "Italy – Central South (CSUD)",
+        "country": "IT",
+        "timezone": "Europe/Rome",
+        "stations": [
+            (41.90,  12.50, 2.87, "Rome"),
+            (42.46,  14.21, 0.12, "Pescara"),
+            (41.46,  15.55, 0.15, "Foggia"),
+            (43.62,  13.51, 0.10, "Ancona"),
+        ],
+    },
+    "IT_SUD": {
+        "name": "Italy – South (SUD)",
+        "country": "IT",
+        "timezone": "Europe/Rome",
+        "stations": [
+            (40.85,  14.27, 0.96, "Naples"),
+            (41.12,  16.87, 0.33, "Bari"),
+            (40.47,  17.24, 0.20, "Taranto"),
+            (38.11,  15.65, 0.18, "Reggio Calabria"),
+            (40.64,  15.80, 0.06, "Potenza"),
+            (37.92,  16.18, 0.07, "Catanzaro"),
+        ],
+    },
+    "IT_SARD": {
+        "name": "Italy – Sardinia (SARD)",
+        "country": "IT",
+        "timezone": "Europe/Rome",
+        "stations": [
+            (39.22,   9.12, 0.16, "Cagliari"),
+            (40.73,   8.56, 0.13, "Sassari"),
+            (39.90,   8.63, 0.09, "Oristano"),
+        ],
+    },
+    "IT_SICI": {
+        "name": "Italy – Sicily (SICI)",
+        "country": "IT",
+        "timezone": "Europe/Rome",
+        "stations": [
+            (38.12,  13.36, 0.67, "Palermo"),
+            (37.50,  15.09, 0.31, "Catania"),
+            (38.19,  15.55, 0.24, "Messina"),
+            (37.07,  15.29, 0.12, "Syracuse"),
+        ],
+    },
+
+    # ═══════════════════════════════════════════════════
+    # CENTRAL / EASTERN EUROPE
+    # ═══════════════════════════════════════════════════
+
+    "PL": {
+        "name": "Poland",
+        "country": "PL",
+        "timezone": "Europe/Warsaw",
+        "stations": [
+            (52.23,  21.01, 1.86, "Warsaw"),
+            (50.06,  19.94, 0.78, "Kraków"),
+            (51.75,  19.46, 0.69, "Lodz"),
+            (51.11,  17.04, 0.64, "Wroclaw"),
+            (52.41,  16.93, 0.55, "Poznan"),
+            (54.35,  18.65, 0.47, "Gdansk"),
+            (53.43,  14.55, 0.40, "Szczecin"),
+            (53.12,  18.01, 0.35, "Bydgoszcz"),
+            (51.25,  22.57, 0.34, "Lublin"),
+            (50.26,  19.02, 0.30, "Katowice"),
+        ],
+    },
+    "CZ": {
+        "name": "Czech Republic",
+        "country": "CZ",
+        "timezone": "Europe/Prague",
+        "stations": [
+            (50.08,  14.44, 1.33, "Prague"),
+            (49.20,  16.61, 0.38, "Brno"),
+            (49.83,  18.29, 0.28, "Ostrava"),
+            (49.74,  13.38, 0.17, "Plzen"),
+        ],
+    },
+    "SK": {
+        "name": "Slovakia",
+        "country": "SK",
+        "timezone": "Europe/Bratislava",
+        "stations": [
+            (48.15,  17.11, 0.48, "Bratislava"),
+            (48.72,  21.26, 0.24, "Kosice"),
+            (49.04,  18.34, 0.08, "Zilina"),
+        ],
+    },
+    "HU": {
+        "name": "Hungary",
+        "country": "HU",
+        "timezone": "Europe/Budapest",
+        "stations": [
+            (47.50,  19.04, 1.78, "Budapest"),
+            (47.53,  21.63, 0.20, "Debrecen"),
+            (48.10,  20.78, 0.15, "Miskolc"),
+            (46.25,  20.15, 0.16, "Szeged"),
+            (46.07,  18.23, 0.14, "Pecs"),
+        ],
+    },
+    "RO": {
+        "name": "Romania",
+        "country": "RO",
+        "timezone": "Europe/Bucharest",
+        "stations": [
+            (44.43,  26.10, 1.79, "Bucharest"),
+            (46.77,  23.59, 0.32, "Cluj-Napoca"),
+            (45.75,  21.23, 0.32, "Timisoara"),
+            (47.16,  27.59, 0.29, "Iasi"),
+            (44.18,  28.65, 0.28, "Constanta"),
+            (45.65,  25.61, 0.25, "Brasov"),
+            (44.87,  24.87, 0.18, "Pitesti"),
+        ],
+    },
+    "BG": {
+        "name": "Bulgaria",
+        "country": "BG",
+        "timezone": "Europe/Sofia",
+        "stations": [
+            (42.70,  23.32, 1.24, "Sofia"),
+            (42.14,  24.75, 0.35, "Plovdiv"),
+            (43.21,  27.92, 0.33, "Varna"),
+            (42.49,  27.47, 0.21, "Burgas"),
+            (43.85,  25.97, 0.12, "Ruse"),
+        ],
+    },
+    "GR": {
+        "name": "Greece",
+        "country": "GR",
+        "timezone": "Europe/Athens",
+        "stations": [
+            (37.98,  23.73, 3.15, "Athens"),
+            (40.64,  22.94, 0.82, "Thessaloniki"),
+            (38.25,  21.73, 0.21, "Patras"),
+            (35.34,  25.13, 0.17, "Heraklion"),
+            (39.64,  20.85, 0.14, "Ioannina"),
+            (38.90,  22.43, 0.09, "Larissa"),
+        ],
+    },
+    "SI": {
+        "name": "Slovenia",
+        "country": "SI",
+        "timezone": "Europe/Ljubljana",
+        "stations": [
+            (46.05,  14.51, 0.29, "Ljubljana"),
+            (46.56,  15.65, 0.10, "Maribor"),
+            (45.55,  13.73, 0.05, "Koper"),
+        ],
+    },
+    "HR": {
+        "name": "Croatia",
+        "country": "HR",
+        "timezone": "Europe/Zagreb",
+        "stations": [
+            (45.81,  15.98, 0.81, "Zagreb"),
+            (43.51,  16.44, 0.18, "Split"),
+            (45.33,  14.44, 0.13, "Rijeka"),
+            (44.12,  15.23, 0.07, "Zadar"),
+        ],
+    },
+    "RS": {
+        "name": "Serbia",
+        "country": "RS",
+        "timezone": "Europe/Belgrade",
+        "stations": [
+            (44.80,  20.47, 1.69, "Belgrade"),
+            (45.26,  19.83, 0.27, "Novi Sad"),
+            (43.32,  21.90, 0.17, "Nis"),
+        ],
+    },
+
+    # ═══════════════════════════════════════════════════
+    # NORDICS
+    # ═══════════════════════════════════════════════════
+
+    "DK1": {
+        "name": "Denmark – West (DK1)",
+        "country": "DK",
+        "timezone": "Europe/Copenhagen",
+        "stations": [
+            (56.16,  10.21, 0.35, "Aarhus"),
+            (55.40,  10.39, 0.19, "Odense"),
+            (57.05,   9.92, 0.21, "Aalborg"),
+            (55.47,   8.45, 0.07, "Esbjerg"),
+        ],
+    },
+    "DK2": {
+        "name": "Denmark – East (DK2)",
+        "country": "DK",
+        "timezone": "Europe/Copenhagen",
+        "stations": [
+            (55.68,  12.57, 0.79, "Copenhagen"),
+            (55.40,  11.36, 0.05, "Naestved"),
+            (55.66,  12.27, 0.08, "Roskilde"),
+        ],
+    },
+    "SE1": {
+        "name": "Sweden – North (SE1)",
+        "country": "SE",
+        "timezone": "Europe/Stockholm",
+        "stations": [
+            (65.58,  22.15, 0.08, "Lulea"),
+            (63.82,  20.26, 0.13, "Umea"),
+            (65.84,  21.70, 0.07, "Pitea"),
+            (67.86,  20.22, 0.05, "Kiruna"),
+        ],
+    },
+    "SE2": {
+        "name": "Sweden – North-Middle (SE2)",
+        "country": "SE",
+        "timezone": "Europe/Stockholm",
+        "stations": [
+            (62.39,  17.31, 0.10, "Sundsvall"),
+            (60.67,  17.14, 0.08, "Gavle"),
+            (63.18,  14.64, 0.06, "Ostersund"),
+        ],
+    },
+    "SE3": {
+        "name": "Sweden – Central (SE3)",
+        "country": "SE",
+        "timezone": "Europe/Stockholm",
+        "stations": [
+            (59.33,  18.07, 0.98, "Stockholm"),
+            (59.86,  17.64, 0.23, "Uppsala"),
+            (59.61,  16.55, 0.17, "Vasteras"),
+            (59.27,  15.21, 0.15, "Orebro"),
+            (58.41,  15.62, 0.16, "Linkoping"),
+            (58.59,  16.18, 0.13, "Norrkoping"),
+            (59.38,  13.50, 0.09, "Karlstad"),
+        ],
+    },
+    "SE4": {
+        "name": "Sweden – South (SE4)",
+        "country": "SE",
+        "timezone": "Europe/Stockholm",
+        "stations": [
+            (57.71,  11.97, 0.58, "Gothenburg"),
+            (55.60,  13.00, 0.35, "Malmo"),
+            (56.05,  12.69, 0.15, "Helsingborg"),
+            (57.77,  14.16, 0.12, "Jonkoping"),
+            (56.88,  14.81, 0.09, "Vaxjo"),
+        ],
+    },
+    "NO1": {
+        "name": "Norway – East (NO1, Oslo)",
+        "country": "NO",
+        "timezone": "Europe/Oslo",
+        "stations": [
+            (59.91,  10.75, 0.70, "Oslo"),
+            (59.74,  10.21, 0.10, "Drammen"),
+            (59.91,  11.06, 0.05, "Lillestrom"),
+        ],
+    },
+    "NO2": {
+        "name": "Norway – South (NO2)",
+        "country": "NO",
+        "timezone": "Europe/Oslo",
+        "stations": [
+            (58.97,   5.73, 0.14, "Stavanger"),
+            (58.16,   8.00, 0.12, "Kristiansand"),
+            (58.46,   8.77, 0.05, "Arendal"),
+        ],
+    },
+    "NO3": {
+        "name": "Norway – Middle (NO3)",
+        "country": "NO",
+        "timezone": "Europe/Oslo",
+        "stations": [
+            (63.43,  10.39, 0.21, "Trondheim"),
+            (62.47,   6.15, 0.07, "Alesund"),
+            (62.73,   7.16, 0.05, "Molde"),
+        ],
+    },
+    "NO4": {
+        "name": "Norway – North (NO4)",
+        "country": "NO",
+        "timezone": "Europe/Oslo",
+        "stations": [
+            (69.65,  18.96, 0.07, "Tromso"),
+            (67.28,  14.47, 0.05, "Bodo"),
+            (70.66,  23.68, 0.03, "Hammerfest"),
+        ],
+    },
+    "NO5": {
+        "name": "Norway – West (NO5, Bergen)",
+        "country": "NO",
+        "timezone": "Europe/Oslo",
+        "stations": [
+            (60.39,   5.32, 0.28, "Bergen"),
+            (61.20,   5.18, 0.05, "Floro"),
+        ],
+    },
+    "FI": {
+        "name": "Finland",
+        "country": "FI",
+        "timezone": "Europe/Helsinki",
+        "stations": [
+            (60.17,  24.94, 0.65, "Helsinki"),
+            (60.23,  24.66, 0.29, "Espoo"),
+            (61.50,  23.77, 0.24, "Tampere"),
+            (60.29,  25.04, 0.23, "Vantaa"),
+            (65.01,  25.47, 0.20, "Oulu"),
+            (60.45,  22.27, 0.19, "Turku"),
+            (62.89,  27.68, 0.12, "Kuopio"),
+        ],
+    },
+
+    # ═══════════════════════════════════════════════════
+    # BALTICS
+    # ═══════════════════════════════════════════════════
+
+    "EE": {
+        "name": "Estonia",
+        "country": "EE",
+        "timezone": "Europe/Tallinn",
+        "stations": [
+            (59.44,  24.75, 0.44, "Tallinn"),
+            (58.38,  26.72, 0.10, "Tartu"),
+        ],
+    },
+    "LV": {
+        "name": "Latvia",
+        "country": "LV",
+        "timezone": "Europe/Riga",
+        "stations": [
+            (56.95,  24.11, 0.64, "Riga"),
+            (55.88,  26.53, 0.08, "Daugavpils"),
+            (57.54,  21.01, 0.06, "Liepaja"),
+        ],
+    },
+    "LT": {
+        "name": "Lithuania",
+        "country": "LT",
+        "timezone": "Europe/Vilnius",
+        "stations": [
+            (54.69,  25.28, 0.58, "Vilnius"),
+            (54.90,  23.93, 0.30, "Kaunas"),
+            (55.71,  21.13, 0.15, "Klaipeda"),
+            (55.93,  23.32, 0.07, "Siauliai"),
+        ],
+    },
+
+    # ═══════════════════════════════════════════════════
+    # BRITISH ISLES
+    # ═══════════════════════════════════════════════════
+
+    "GB": {
+        "name": "Great Britain",
+        "country": "GB",
+        "timezone": "Europe/London",
+        "stations": [
+            (51.51,  -0.13, 9.00, "London"),
+            (52.48,  -1.90, 2.64, "Birmingham"),
+            (53.48,  -2.24, 2.55, "Manchester"),
+            (53.80,  -1.55, 1.89, "Leeds"),
+            (53.41,  -2.99, 1.61, "Liverpool"),
+            (53.38,  -1.47, 1.37, "Sheffield"),
+            (55.86,  -4.25, 0.63, "Glasgow"),
+            (55.95,  -3.19, 0.51, "Edinburgh"),
+            (51.46,  -2.60, 0.47, "Bristol"),
+            (54.98,  -1.61, 0.89, "Newcastle"),
+            (51.48,  -3.18, 0.36, "Cardiff"),
+        ],
+    },
+    "IE": {
+        "name": "Ireland",
+        "country": "IE",
+        "timezone": "Europe/Dublin",
+        "stations": [
+            (53.33,  -6.25, 1.17, "Dublin"),
+            (51.90,  -8.47, 0.21, "Cork"),
+            (52.66,  -8.63, 0.10, "Limerick"),
+            (53.27,  -9.05, 0.08, "Galway"),
+        ],
+    },
+}
+
+ALL_ZONES = list(ZONES.keys())
+
+ZONE_GROUPS = {
+    "Italy":         ["IT_NORD", "IT_CNORD", "IT_CSUD", "IT_SUD", "IT_SARD", "IT_SICI"],
+    "Norway":        ["NO1", "NO2", "NO3", "NO4", "NO5"],
+    "Sweden":        ["SE1", "SE2", "SE3", "SE4"],
+    "Denmark":       ["DK1", "DK2"],
+    "Nordics":       ["NO1","NO2","NO3","NO4","NO5","SE1","SE2","SE3","SE4","DK1","DK2","FI"],
+    "Baltics":       ["EE", "LV", "LT"],
+    "Core_EU":       ["DE", "FR", "NL", "BE", "AT", "CH"],
+    "Southern_EU":   ["ES","PT","IT_NORD","IT_CNORD","IT_CSUD","IT_SUD","IT_SARD","IT_SICI","GR"],
+    "Eastern_EU":    ["PL", "CZ", "SK", "HU", "RO", "BG", "SI", "HR", "RS"],
+    "British_Isles": ["GB", "IE"],
+}
